@@ -35,7 +35,7 @@ def transport__slope(D, h, q_s):
 D = 35E-3 # [m]
 porosity = lambda_p = 0.35 # [-]
 
-nx = 11
+nx = 10001
 h = .5 * np.ones(nx)
 B = 100 * np.ones(nx)
 x = np.linspace(0, 1000, nx)
@@ -46,15 +46,17 @@ t = np.linspace(0, 10, 11) # start at 1 below, t0 is initial
 
 A0 = 11.325 / (1 - lambda_p) * h/D
 
-q_s_in = 0.69623693
+q_s_in = 1.#0.69623693 # [m^3 s^{-1}]
 #q_s_out = whatever it has to be to transport out as much material as it receives
 
-S_t_in = transport__slope(D, h[0], q_s_in*.1)
-S_t_out = transport__slope(D, h[0], q_s_in*.1)
+S_t_in = transport__slope(D, h[0], q_s_in)
+S_t_out = transport__slope(D, h[0], q_s_in*0)
 
-dt = 3600.
+dt = 10000
 
-for t in range(1):
+print np.mean(eta)
+
+for t in range(10):
   #S_t_out = -(eta[-1] - eta[-3])/(2*dx)
   etatmp = eta.copy() # for iterating
   eta_with_ghost = np.hstack((eta[1] + S_t_in*2*dx, eta, eta[-2] - S_t_out*2*dx))
@@ -63,7 +65,7 @@ for t in range(1):
     # etatmp used to update coefficient: this is the nonlinearity that 
     # requires iteration
     ###################################################################
-    etatmp_with_ghost = np.hstack((etatmp[1] + 0.2, etatmp, etatmp[-2] - 0.2))
+    etatmp_with_ghost = np.hstack((etatmp[1] + S_t_in*2*dx, etatmp, etatmp[-2] - S_t_out*2*dx))
     detatmp_dx = (etatmp_with_ghost[2:] - etatmp_with_ghost[:-2]) / (2*dx)
 
     #A1 = (- ( (h/D) * detatmp_dx ) - 0.0816)**.5
@@ -102,9 +104,10 @@ for t in range(1):
     # round = coarse trick to rmv floating point issues
     etatmp = spsolve(coeff_matrix, RHS, use_umfpack=True)
     #etatmp[1:-1] = coeff_matrix * eta[1:-1]
-    print etatmp[-1]
-  print ""
+    #print etatmp[-1]
+  #print ""
   eta = etatmp.copy()
+print np.mean(eta)
 
-#plt.plot(eta)
-#plt.show()
+plt.plot(eta)
+plt.show()
