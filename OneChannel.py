@@ -10,7 +10,7 @@ def sediment__discharge_per_unit_width(D, h, z, x):
   MPM and Exner into a nonlinear diffusion equation and doesn't explicitly give
   transport rates
   
-  Wang and Parker (2006) version of MPM (1947)
+  Wang and Parker (2006) version of MPM (1948)
   Normal flow assumptions: depth--slope product
   """
   dz_dx = (z[2:] - z[:-2]) / (x[2:] - x[:-2])
@@ -29,34 +29,35 @@ def transport__slope(D, h, q_s):
 
   S_t = -0.26 * D/h * (q_s**(2./3.) + 0.314) --> +0.26...
   """
-  S_t = 0.26 * D/h * (q_s**(2./3.) + 0.314)
+  S_t = np.sign(q_s) * 0.26 * D/h * (np.abs(q_s)**(2./3.) + 0.314)
   return S_t
 
-D = 35E-3 # [m]
+D = 5E-3 # [m]
 porosity = lambda_p = 0.35 # [-]
 
-nx = 10001
-h = .5 * np.ones(nx)
+nx = 1E5
+h = 2. * np.ones(nx)
 B = 100 * np.ones(nx)
-x = np.linspace(0, 1000, nx)
+x = np.linspace(0, 1E6, nx)
 dx = np.mean(np.diff(x))
-eta = -1E-2 * x + np.max(x)*1E-2
+eta = -1E-3 * x + np.max(x)*1E-3
 eta = np.round(eta, 6) # coarse trick to rmv floating point issues
 t = np.linspace(0, 10, 11) # start at 1 below, t0 is initial
 
 A0 = 11.325 / (1 - lambda_p) * h/D
 
-q_s_in = 1.#0.69623693 # [m^3 s^{-1}]
+#q_s_in = 0.69623693 # [m^3 s^{-1}]
+q_s_in = sediment__discharge_per_unit_width(D, h, eta, x)[0]
 #q_s_out = whatever it has to be to transport out as much material as it receives
 
 S_t_in = transport__slope(D, h[0], q_s_in)
-S_t_out = transport__slope(D, h[0], q_s_in*0)
+S_t_out = transport__slope(D, h[0], q_s_in*10)
 
-dt = 10000
+dt = 3.15E6
 
 print np.mean(eta)
 
-for t in range(10):
+for t in range(1):
   #S_t_out = -(eta[-1] - eta[-3])/(2*dx)
   etatmp = eta.copy() # for iterating
   eta_with_ghost = np.hstack((eta[1] + S_t_in*2*dx, eta, eta[-2] - S_t_out*2*dx))
