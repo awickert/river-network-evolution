@@ -35,10 +35,10 @@ def transport__slope(D, h, q_s):
 D = 35E-3 # [m]
 porosity = lambda_p = 0.35 # [-]
 
-nx = 1001
-h = 1. * np.ones(nx)
+nx = 11
+h = .5 * np.ones(nx)
 B = 100 * np.ones(nx)
-x = np.linspace(0, 10000, nx)
+x = np.linspace(0, 1000, nx)
 dx = np.mean(np.diff(x))
 eta = -1E-2 * x + np.max(x)*1E-2
 eta = np.round(eta, 6) # coarse trick to rmv floating point issues
@@ -46,28 +46,33 @@ t = np.linspace(0, 10, 11) # start at 1 below, t0 is initial
 
 A0 = 11.325 / (1 - lambda_p) * h/D
 
-q_s_in = 10.#0.69623693
+q_s_in = 0.69623693
 #q_s_out = whatever it has to be to transport out as much material as it receives
 
-S_t_in = transport__slope(D, h[0], q_s_in)
-S_t_out = transport__slope(D, h[0], q_s_in*2)
+S_t_in = transport__slope(D, h[0], q_s_in*.1)
+S_t_out = transport__slope(D, h[0], q_s_in*.1)
 
-dt = 10000.
+dt = 3600.
 
-for t in range(5):
+for t in range(1):
   #S_t_out = -(eta[-1] - eta[-3])/(2*dx)
   etatmp = eta.copy() # for iterating
   eta_with_ghost = np.hstack((eta[1] + S_t_in*2*dx, eta, eta[-2] - S_t_out*2*dx))
   deta = eta_with_ghost[2:] - eta_with_ghost[:-2]
-  for i in range(5):
+  for i in range(3):
     # etatmp used to update coefficient: this is the nonlinearity that 
     # requires iteration
     ###################################################################
     etatmp_with_ghost = np.hstack((etatmp[1] + 0.2, etatmp, etatmp[-2] - 0.2))
-    detatmp = etatmp_with_ghost[2:] - etatmp_with_ghost[:-2]
-    # HAVE TO CHECK ABS TO LET UPSTREAM QS HAPPEN
-    A1 = (- ( (h/D) * detatmp/(2*dx) ) - 0.0816)**.5
+    detatmp_dx = (etatmp_with_ghost[2:] - etatmp_with_ghost[:-2]) / (2*dx)
 
+    #A1 = (- ( (h/D) * detatmp_dx ) - 0.0816)**.5
+    # HAVE TO CHECK ABS TO LET UPSTREAM QS HAPPEN
+    A1_inside_inside = -h*detatmp_dx/D # - because MPM has slope down positive
+    A1_inside = np.abs(h*detatmp_dx/D) - 0.0816
+    A1_inside[A1_inside < 0] = 0 # no transport
+    A1 = np.sign(A1_inside) * (A1_inside)**0.5
+    
     # Minus for flipping eta(t) and eta(t+1)
     A = - A0 * A1
     #A = 0*A+1 # Making A linear for the moment -- none of the above matters!!!
@@ -95,10 +100,11 @@ for t in range(5):
     # Eventually have to use this for iteration
     #etatmp = spsolve(coeff_matrix, RHS, use_umfpack=True)
     # round = coarse trick to rmv floating point issues
-    etatmp = np.round(spsolve(coeff_matrix, RHS, use_umfpack=True), 6)
+    etatmp = spsolve(coeff_matrix, RHS, use_umfpack=True)
     #etatmp[1:-1] = coeff_matrix * eta[1:-1]
+    print etatmp[-1]
+  print ""
   eta = etatmp.copy()
-  print etatmp[-1]
 
-plt.plot(eta)
-plt.show()
+#plt.plot(eta)
+#plt.show()
