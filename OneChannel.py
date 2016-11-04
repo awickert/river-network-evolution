@@ -12,9 +12,16 @@ def sediment__discharge_per_unit_width(D, h, z, x):
   
   Wang and Parker (2006) version of MPM (1948)
   Normal flow assumptions: depth--slope product
+  
+  q_s = 7.55 * ( np.abs(h[1:-1]/D * S) - 0.0816 )**1.5
+  with corrections for values below the threshold of motion
+  and for sdiment motion that is backwards.
+  S = -dz_dx
   """
-  dz_dx = (z[2:] - z[:-2]) / (x[2:] - x[:-2])
-  q_s = 7.55 * ( h[1:-1]/D * -dz_dx - 0.0816 )**1.5
+  S = (z[2:] - z[:-2]) / (x[2:] - x[:-2]) # = -dz_dx
+  q_s_inner = np.abs(h[1:-1]/D * S) - 0.0816
+  q_s_inner[q_s_inner < 0] = 0 # no transport if less than threshold
+  q_s = np.sign(q_s_inner) * 7.55 * q_s_inner**1.5
   return q_s
 
 def transport__slope(D, h, q_s):
@@ -32,7 +39,7 @@ def transport__slope(D, h, q_s):
   S_t = np.sign(q_s) * 0.26 * D/h * (np.abs(q_s)**(2./3.) + 0.314)
   return S_t
 
-D = 5E-3 # [m]
+D = 55E-3 # [m]
 porosity = lambda_p = 0.35 # [-]
 
 nx = 1E5
@@ -51,13 +58,13 @@ q_s_in = sediment__discharge_per_unit_width(D, h, eta, x)[0]
 #q_s_out = whatever it has to be to transport out as much material as it receives
 
 S_t_in = transport__slope(D, h[0], q_s_in)
-S_t_out = transport__slope(D, h[0], q_s_in*10)
+S_t_out = transport__slope(D, h[0], q_s_in*.1)
 
-dt = 3.15E6
+dt = 3.15E9
 
 print np.mean(eta)
 
-for t in range(1):
+for t in range(10):
   #S_t_out = -(eta[-1] - eta[-3])/(2*dx)
   etatmp = eta.copy() # for iterating
   eta_with_ghost = np.hstack((eta[1] + S_t_in*2*dx, eta, eta[-2] - S_t_out*2*dx))
@@ -74,6 +81,7 @@ for t in range(1):
     A1_inside_inside = -h*detatmp_dx/D # - because MPM has slope down positive
     A1_inside = np.abs(h*detatmp_dx/D) - 0.0816
     A1_inside[A1_inside < 0] = 0 # no transport
+    print A1_inside
     A1 = np.sign(A1_inside) * (A1_inside)**0.5
     
     # Minus for flipping eta(t) and eta(t+1)
