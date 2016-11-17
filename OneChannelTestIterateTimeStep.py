@@ -20,7 +20,29 @@ A0 = 11.325 / (1 - lambda_p) * h/D
 etatmp = eta.copy() # for iterating
 eta_with_ghost = np.hstack((eta[1] + 0.5, eta, eta[-2] - 0.5))
 deta = eta_with_ghost[2:] - eta_with_ghost[:-2]
-dt = 10. 
+dt = 10.
+
+def sediment__discharge_per_unit_width(D, h, q_s):
+  """
+  This transport slope, or d(eta)/dx, is the slope required for a certain
+  sediment discharge per unit channel width.
+  
+  This is a utility to create the ghost nodes for the Neumann boundary
+  condition.
+  """
+  S_t = -0.26 * D/h * (q_s**(2./3.) + 0.314)
+  return S_t
+
+def transport__slope(D, h, q_s):
+  """
+  This transport slope, or d(eta)/dx, is the slope required for a certain
+  sediment discharge per unit channel width.
+  
+  This is a utility to create the ghost nodes for the Neumann boundary
+  condition.
+  """
+  S_t = -0.26 * D/h * (q_s**(2./3.) + 0.314)
+  return S_t
 
 for t in range(10):
   for i in range(5):
