@@ -79,9 +79,9 @@ def build_coeff_matrix_section(eta, etatmp, eta_with_ghost, D, h, dx, S_t_in, S_
   diags = np.vstack((l1,c0,r1))
   offsets = np.array([-1,0,1])
 
-  coeff_matrix = spdiags(diags, offsets, nx, nx, format='csr')
+  coeff_matrix_block = spdiags(diags, offsets, nx, nx, format='csr')
   
-  return coeff_matrix
+  return coeff_matrix_block
   
 
 D = 55E-3 # [m]
@@ -110,7 +110,7 @@ dt = 3.15E5
 
 #print np.mean(eta)
 
-eta__all_channels = np.vstack((eta, eta, eta))
+eta__all_channels = np.vstack((eta+21.1111111111, eta+11.1111111111, eta))
 etatmp__all = eta__all_channels.copy()
 
 
@@ -155,6 +155,9 @@ for t in range(1):
   ##############################
   ### LINKS BETWEEN SEGMENTS ###
   ##############################
+  
+  # ONLY WORKS if all rivers are the same length -- using n, instead
+  # of n1, n2, ... n_allS
 
   # 1. List whether these are upstream-most or downstream-most ends
   at_upstream_end = []
@@ -200,7 +203,31 @@ for t in range(1):
   ########################
   plt.imshow(coeff_matrix.todense(), interpolation='nearest'); plt.show()
 
-
+  #######################
+  ### RIGHT-HAND SIDE ###
+  #######################
+  
+  #RHS = eta.copy() # (eta(t))
+  
+  #eta_with_ghost = np.hstack((eta[1] + S_t_in*2*dx, eta, eta[-2] - S_t_out*2*dx))
+  #deta = eta_with_ghost[2:] - eta_with_ghost[:-2]
+  
+  eta_stack = np.hstack((eta+21.1111111111, eta+11.1111111111, eta)) # VERY SPECIFIC TO THIS -- CAN GENERALIZE
+  Adt_stack = np.hstack((Adt, Adt, Adt)) # very specific and taken by hand out of fcn
+  RHS = eta_stack.copy() # VERY SPECIFIC TO THIS -- CAN GENERALIZE
+  
+  # Add boundary conditions at very ends
+  # Assuming all inputs have same transport slope -- can index this in a 
+  # future code.
+  for S in range(len(eta__all_channels)):
+    if at_upstream_end[S]:
+      ghost_left = eta_stack[S*n+1] + S_t_in*2*dx
+      #RHS[S*n] += Adt[S*n] * (eta_with_ghost[S*n+2] - eta_with_ghost[S*n]) / (dx**2)
+      RHS[S*n] += Adt_stack[S*n] * (eta_stack[S*n+1] - ghost_left) / (dx**2)
+    if at_downstream_end[S]:
+      ghost_right = eta_stack[(S+1)*n-2] - S_t_out*2*dx
+      RHS[(S+1)*n-1] -= Adt_stack[(S+1)*n-1] * (ghost_right - eta_stack[(S+1)*n-2]) / (dx**2)
+      #RHS[(S+1)*n-1] += Adt[(S+1)*n-1] * (eta_with_ghost[(S+1)*n-1] - eta_with_ghost[(S+1)*n-3]) / (dx**2)
 
     # Eventually have to use this for iteration
     #etatmp = spsolve(coeff_matrix, RHS, use_umfpack=True)
@@ -208,6 +235,9 @@ for t in range(1):
     etatmp = spsolve(coeff_matrix, RHS, use_umfpack=True)
     #etatmp[1:-1] = coeff_matrix * eta[1:-1]
     #print etatmp[-1]
+    # Plot -- very specific again
+    x_stack = np.hstack((x, x, x+1111.111))
+    plt.plot(x_stack, etatmp); plt.show()
   #print ""
   eta = etatmp.copy()
 print np.mean(eta)
