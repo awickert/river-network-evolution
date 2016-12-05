@@ -39,10 +39,10 @@ def transport__slope(D, h, q_s):
   S_t = np.sign(q_s) * 0.26 * D/h * (np.abs(q_s)**(2./3.) + 0.314)
   return S_t
 
-D = 55E-3 # [m]
+D = 15E-3 # [m]
 porosity = lambda_p = 0.35 # [-]
 
-nx = 1E5
+nx = 11
 h = 2. * np.ones(nx)
 B = 100 * np.ones(nx)
 x = np.linspace(0, 1E6, nx)
@@ -118,5 +118,6 @@ for t in range(10):
   eta = etatmp.copy()
 print np.mean(eta)
 
+plt.ion()
 plt.plot(eta)
 plt.show()
