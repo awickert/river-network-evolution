@@ -35,20 +35,21 @@ self.flow_from_to = np.array([[0,2],[1,2],[2,4],[3,4]])
 self.flow_from = [[], [], [0,1], [], [2,3]]
 self.flow_to = [[2], [2], [4], [4], []]
 self.b = [20, 20, 40, 20, 60]
+#self.b = [20, 30, 50, 10, 60]
 
 
 
 # PER RIVER #
 #############
 self.eta = []
-self.nx = 1E1+1
+self.nx = 5E1+1
 
 # 3 rivers -- would often pull them in from GIS
 # Keep everything uniform for starters
 xmax = 1E3
 self.B = 100 * np.ones(self.nx)
 S = 1E-2
-self.dt = 3.15E3
+self.dt = 3.15E10
 
 self.x = []
 self.dx = []
@@ -93,28 +94,32 @@ q_s_equilibrium = np.array(self.sediment__discharge_per_unit_width())
 # Assuming in order: so flow_from is really irrelavant; flow_to is the important part
 
 fig = plt.figure()
+plt.ylim((0,50))
 ax = plt.subplot(111)
 #for row in self.eta:
 #  row += 10
-for ts in range(50):#self.nts:
+for ts in range(1):#self.nts:
   # 3 iterations is usually good; nothing special about it, though.
   self.eta_iter = copy.deepcopy(self.eta) # For iteration
   self.stack_vars()
-  for iter_i in range(1):
+  for iter_i in range(2):
     self.build_coeff_matrix(q_s_equilibrium)
     self.build_RHS()
     print np.max(np.hstack(self.eta_iter))
     self.solve()
   self.update()
   ax.clear()
-  self.riverplot()
-  #plt.draw()
-  plt.pause(0.01)
+  if ts % 5 == 0:
+    self.riverplot(linewidth=2)
+    #plt.ylim((0,40))
+    #plt.draw()
+    plt.pause(0.01)
 self.stack_vars()
 
 #self.plot_coeff_matrix()
 
-self.riverplot(linewidth=2)
+#plt.ylim((0,40))
+self.riverplot(linewidth=4)
 plt.show()
   
   
