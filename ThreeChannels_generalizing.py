@@ -29,12 +29,20 @@ class rnet(object):
     q_s = []
     for Si in range(len(z)):
       _S = -(z[Si][2:] - z[Si][:-2]) / (self.x[Si][2:] - self.x[Si][:-2]) # = -dz_dx
-      q_s_inner = np.abs(self.h[Si][1:-1]/self.D * _S) - 0.0816
+      q_s_inner = np.abs(self.h[Si][1:-1] * _S/self.D) - 0.0816
       q_s_inner[q_s_inner < 0] = 0 # no transport if less than threshold
       q_s_i = np.sign(_S) * 7.55 * q_s_inner**1.5
       q_s.append(q_s_i)
     return q_s
 
+  def sediment__discharge_per_unit_width_at_link(self, h, z, x):
+    _S = -(float(z[1]) - float(z[0])) / (float(x[1]) - float(x[0])) # = -dz_dx
+    q_s_inner = np.abs(h*_S/self.D) - 0.0816
+    if q_s_inner < 0:
+      q_s_inner = 0 # no transport if less than threshold
+    q_s = np.sign(_S) * 7.55 * q_s_inner**1.5
+    return q_s
+    
   def transport__slope(self, q_s, h):
     """
     This transport slope, or d(eta)/dx, is the slope required for a certain
@@ -141,32 +149,49 @@ class rnet(object):
     self.S_t_in = [] # flux_boundary_conditions_upstream
     self.S_t_out = [] # flux_boundary_conditions_downstream
     for Si in range(len(self.x)):
+      # Upstream: so other river is the one that is above this one
       if self.at_upstream_end[Si]:
         if Si == 0:
           bc = 1.5*self.transport__slope(q_s_equilibrium[Si][0], self.h[Si][0]) #1?
         elif Si == 1:
-          bc = .5*self.transport__slope(q_s_equilibrium[Si][0], self.h[Si][0]) #1?
+          bc = 0.8*self.transport__slope(q_s_equilibrium[Si][0], self.h[Si][0]) #1?
         else:
-          bc = self.transport__slope(q_s_equilibrium[Si][0], self.h[Si][0]) #1?
+          bc = 2*self.transport__slope(q_s_equilibrium[Si][0], self.h[Si][0]) #1?
       else:
         # internal boundary conditions -- what goes in, must come out
         # and at equilibrium (unforced)
+        # CHANGED! USING BOUNDARY SLOPES
         _q_s = 0
-        for _i in self.flow_from[Si]:
-          _i = int(_i)
+        # Sf = stream from (above Si)
+        for Sf in self.flow_from[Si]:
+          Sf = int(Sf)
+          #_z = [self.eta[Sf][-1], self.eta[Si][0]]
+          #_x = [self.x[Sf][-1], self.x[Si][0]]
+          #_h = np.mean([self.h[Sf][-1], self.h[Si][0]])
           # WIDTH ADJUSTMENT
-          _q_s += q_s_equilibrium[_i][-1] * self.b[_i]/self.b[Si]
+          #_q_s += self.sediment__discharge_per_unit_width_at_link(_h, _z, _x) * self.b[Sf]/self.b[Si]
+          _q_s += q_s_equilibrium[Sf][-1] * self.b[Sf]/self.b[Si]
         bc = self.transport__slope(_q_s, self.h[Si][0])
       self.S_t_in.append(bc)
+      # So if at downstream end, then flowing to something
+      # and Si is upstream
       if self.at_downstream_end[Si]:
-        bc = 1.2 * self.transport__slope(q_s_equilibrium[Si][-1], self.h[Si][-1]) #-2?
+        #bc = 1.2 * self.transport__slope(q_s_equilibrium[Si][-1], self.h[Si][-1]) #-2?
+        # Just transporting out as much as it gets
+        bc = self.transport__slope(self.sediment__discharge_per_unit_width()[Si][-1], self.h[Si][-1]) #-2?
       else:
         # internal boundary conditions -- what goes in, must come out
         # and at equilibrium (unforced)
+        # CHANGED! USING BOUNDARY SLOPES
         _q_s = 0
-        for _i in self.flow_to[Si]:
-          _i = int(_i)
-          _q_s += q_s_equilibrium[_i][0]
+        for St in self.flow_to[Si]:
+          St = int(St)
+          # To use the slope right at the margin
+          #_z = [self.eta[Si][-1], self.eta[St][0]]
+          #_x = [self.x[Si][-1], self.x[St][0]]
+          #_h = np.mean([self.h[Si][-1], self.h[St][0]])
+          #_q_s += self.sediment__discharge_per_unit_width_at_link(_h, _z, _x)# * self.b[Si]/self.b[St]
+          _q_s += q_s_equilibrium[St][0]
           #_q_s /= 2. # test!!!
         bc = self.transport__slope(_q_s, self.h[Si][-1])
       self.S_t_out.append(bc)
