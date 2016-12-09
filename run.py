@@ -5,44 +5,24 @@ from matplotlib import pyplot as plt
 import copy
 import time
 
-import ThreeChannels_generalizing
+"""
+import ThreeChannels_generalizing_extended_array
 
-reload(ThreeChannels_generalizing)
-r = ThreeChannels_generalizing.rnet()
+reload(ThreeChannels_generalizing_extended_array)
+r = ThreeChannels_generalizing_extended_array.rnet()
+self = r
+"""
+
+import main
+reload(main)
+
+D = 200E-3
+
+#r = main.rnet(self.eta, 200E-3)
+r = main.rnet(D=D)
 self = r
 
-plt.ion()
 
-#######################
-### INPUT VARIABLES ###
-#######################
-
-# GLOBAL UNIFORM #
-##################
-self.D = 200E-3 # [m] [uniform so far]
-porosity = lambda_p = 0.35 # [-]
-n_time_steps = 10
-self.flow_from_to = np.array([[0,2],[1,2]])
-self.flow_from = [[], [], [0,1]]
-self.flow_to = [[2], [2], []]
-self.b = [20, 20, 40]
-self.segment_Q_in = self.headwaters_segments = np.array([[0,40],[1,20]])
-self.nsegments = len(self.flow_from)
-
-#self.flow_from_to = np.array([[0,1]])
-#self.flow_from = [[], [0]]
-#self.flow_to = [[1], []]
-
-self.flow_from_to = np.array([[0,2],[1,2],[2,4],[3,4]])
-self.flow_from = [[], [], [0,1], [], [2,3]]
-self.flow_to = [[2], [2], [4], [4], []]
-self.b = [20, 20, 40, 20, 60]
-#self.b = [20, 30, 50, 10, 60]
-self.segment_Q_in = self.headwaters_segments = np.array([[0,40],[1,20],[3,50]])
-
-
-# PER RIVER #
-#############
 self.eta = []
 self.nx = 5E1+1
 
@@ -51,7 +31,15 @@ self.nx = 5E1+1
 xmax = 1E3
 self.B = 100 * np.ones(self.nx)
 S = 1E-2
-self.dt = 3.15E10
+self.dt = 3.15E5
+
+# Define these in init, later
+self.flow_from_to = np.array([[0,2],[1,2],[2,4],[3,4]])
+self.flow_from = [[], [], [0,1], [], [2,3]]
+self.flow_to = [[2], [2], [4], [4], []]
+self.b = [20, 20, 40, 20, 60]
+#self.b = [20, 30, 50, 10, 60]
+self.segment_Q_in = self.headwaters_segments = np.array([[0,40],[1,20],[3,50]])
 
 self.x = []
 self.dx = []
@@ -69,6 +57,12 @@ self.x[-1] += self.x[2][-1] + self.dx[-1] #Very specific to this 5-river set her
 for row in self.x:
   self.eta.append( -S * row + np.max(self.x)*S )
   self.eta[-1] = np.round(self.eta[-1], 6) # coarse trick to rmv floating point issues
+self.nsegments = len(self.eta)
+
+plt.ion()
+
+n_time_steps = 10
+
 
 #########################
 ### DERIVED VARIABLES ###
@@ -77,29 +71,13 @@ for row in self.x:
 self.nts = np.linspace(0, n_time_steps, n_time_steps+1) # start at 1 below, t0 is initial
 self.A0 = []
 for Si in range(len(self.x)):
-  self.A0.append( 11.325 / (1 - lambda_p) * self.h[Si]/self.D )
-#q_s_in = 0.69623693 # [m^3 s^{-1}]
-# q_s for equilibrium in each channel; used for transport slope upstream
-# boundary conditions
-
-    
-#q_s_out = whatever it has to be to transport out as much material as it receives
+  self.A0.append( 11.325 / (1 - self.lambda_p) * self.h[Si]/self.D )
 
 q_s_equilibrium = np.array(self.sediment__discharge_per_unit_width())
-
-
-#print np.mean(eta)
-
-
-# Ignoring for now -- for iterating
-
-# Assuming in order: so flow_from is really irrelavant; flow_to is the important part
 
 fig = plt.figure()
 plt.ylim((0,50))
 ax = plt.subplot(111)
-#for row in self.eta:
-#  row += 10
 for ts in range(1):#self.nts:
   # 3 iterations is usually good; nothing special about it, though.
   self.eta_iter = copy.deepcopy(self.eta) # For iteration

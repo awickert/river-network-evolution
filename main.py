@@ -7,16 +7,24 @@ import copy
 
 class rnet(object):
 
-  def __init__(self, D):
+  def __init__(self, eta_segments=None, D=None):
     self.tau_star_crit = 0.0495 # Wong and Parker
     self.rho_s = 2650.
     self.rho = 1000.
     self.g = 9.8
     self.kappa_von_Karman = 0.407
-    self.D = D
+    if D:
+      self.D = D
+      self.k_s = 6*self.D # rough guess --> 3.5*D_84 = 6*D_50?
     self.lambda_p = 0.35
-    self.k_s = 6*D # rough guess --> 3.5*D_84 = 6*D_50?
     self.z_0 = self.k_s/30. # hydraulically rough flow
+    if eta_segments:
+      self.eta = eta_segments
+      self.nsegments = len(self.eta)
+    if D:
+      pass
+    else:
+      print "Choose a single grain size, D!"
 
   def sediment__discharge_per_unit_width(self, Si_values=None, i=None):
     """
@@ -36,7 +44,7 @@ class rnet(object):
     if Si_values:
       Si_values = list(Si_values)
     else:
-      Si_values = range(len(z))
+      Si_values = range(len(self.eta))
     z = self.eta
     q_s = []
     for Si in Si_values:
@@ -128,19 +136,19 @@ class rnet(object):
       self.Qin
     """
     # Mapping
-    headwaters_flow_to_segments = []
-    for Si_in, Q in headwaters_segments:
+    self.headwaters_flow_to_segments = []
+    for Si_in, Q in self.headwaters_segments:
       _headwaters_flow_to_segments_Si = []
       to_segment = [Si_in]
       while len(to_segment):
         _headwaters_flow_to_segments_Si += list(to_segment)
-        to_segment = flow_from_to[:,1][flow_from_to[:,0] == to_segment]
-      headwaters_flow_to_segments.append(_headwaters_flow_to_segments_Si)
+        to_segment = self.flow_from_to[:,1][self.flow_from_to[:,0] == to_segment]
+      self.headwaters_flow_to_segments.append(_headwaters_flow_to_segments_Si)
     # Compute discharge
-    Q_in_segment = np.zeros(nsegments)
-    for HWi in range(len(headwaters_flow_to_segments)):
-      for Si in headwaters_flow_to_segments[HWi]:
-        Q_in_segment[Si] += headwaters_segments[HWi,1]
+    self.Q_in_segment = np.zeros(nsegments)
+    for HWi in range(len(self.headwaters_flow_to_segments)):
+      for Si in self.headwaters_flow_to_segments[HWi]:
+        self.Q_in_segment[Si] += self.headwaters_segments[HWi,1]
     
     
   def boundary_conditions__copy_arrays(self):
@@ -153,10 +161,10 @@ class rnet(object):
     Used with channel geometry boundary conditions: start by considering 
     constant slope at boundaries (instead of changing transport slope)
     """
-      if self.at_upstream_end(Si):
-        self.eta_with_bc[Si] = np.hstack((eta_with_bc[Si][0], self.eta_with_bc[Si]))
-      if self.at_downstream_end(Si):
-        self.eta_with_bc[Si] = np.hstack((eta_with_bc[Si][0], self.eta_with_bc[Si]))
+    if self.at_upstream_end(Si):
+      self.eta_with_bc[Si] = np.hstack((eta_with_bc[Si][0], self.eta_with_bc[Si]))
+    if self.at_downstream_end(Si):
+      self.eta_with_bc[Si] = np.hstack((eta_with_bc[Si][0], self.eta_with_bc[Si]))
 
   def slope_at_each_cell(self):
     """
@@ -294,7 +302,58 @@ class rnet(object):
     coeff_matrix_block = spdiags(diags, offsets, self.nx, self.nx, format='csr')
     
     return coeff_matrix_block
+  
+  def upstream_downstream_end_segments(self):
+    # 1. List whether these are upstream-most or downstream-most ends
+    self.at_upstream_end = []
+    self.at_downstream_end = []
+    # Si for segment (or stream) index
+    for Si in range(len(self.eta)):
+      self.at_upstream_end.append( (self.flow_from_to[:,1] != Si).all() )
+      self.at_downstream_end.append( (self.flow_from_to[:,0] != Si).all() )
+  
+  def boundary_condition_sediment_flux(self):
+    #########################################################
+    # BC 1: SET q_s WITH SET b (and therefore h, u, for S_t #
+    #########################################################
     
+    for Si in range(len(self.x)):
+      # Upstream: so other river is the one that is above this one
+      if self.at_upstream_end[Si]:
+        if Si == 0:
+          bc = 1.5*self.transport__slope(self.q_s_equilibrium[Si][0], self.h[Si][0]) #1?
+        elif Si == 1:
+          bc = 0.8*self.transport__slope(self.q_s_equilibrium[Si][0], self.h[Si][0]) #1?
+        else:
+          bc = 2*self.transport__slope(self.q_s_equilibrium[Si][0], self.h[Si][0]) #1?
+      else:
+        # internal boundary conditions -- what goes in, must come out
+        # and at equilibrium (unforced)
+        # CHANGED! USING BOUNDARY SLOPES
+        _q_s = 0
+        # Sf = stream from (above Si)
+        for Sf in self.flow_from[Si]:
+          Sf = int(Sf)
+          # WIDTH ADJUSTMENT
+          _q_s += self.q_s_equilibrium[Sf][-1] * self.b[Sf]/self.b[Si]
+        bc = self.transport__slope(_q_s, self.h[Si][0])
+      self.S_t_in.append(bc)
+      # So if at downstream end, then flowing to something
+      # and Si is upstream
+      if self.at_downstream_end[Si]:
+        # Just transporting out as much as it gets
+        bc = self.transport__slope(self.sediment__discharge_per_unit_width()[Si][-1], self.h[Si][-1]) #-2?
+      else:
+        # internal boundary handling
+        _q_s = 0
+        for St in self.flow_to[Si]:
+          St = int(St)
+          # To use the slope right at the margin
+          _q_s += self.q_s_equilibrium[St][0]
+        bc = self.transport__slope(_q_s, self.h[Si][-1])
+      self.S_t_out.append(bc)
+
+
   def build_coeff_matrix(self, q_s_equilibrium = None):
     """
     This goes within of the Picard iteration
@@ -313,75 +372,29 @@ class rnet(object):
     ### LINKS BETWEEN SEGMENTS ###
     ##############################
     
-    # 1. List whether these are upstream-most or downstream-most ends
-    self.at_upstream_end = []
-    self.at_downstream_end = []
-    # Si for segment (or stream) index
-    for Si in range(len(self.eta)):
-      self.at_upstream_end.append( (self.flow_from_to[:,1] != Si).all() )
-      self.at_downstream_end.append( (self.flow_from_to[:,0] != Si).all() )
-
+    self.upstream_downstream_end_segments()
+    
     ###########################
     ### BOUNDARY CONDITIONS ###
     ###########################
 
     # CONTRIVED TO BE AT EQUILIBRIUM ON EDGES, TEMPORARILY
     if q_s_equilibrium is not None:
-      pass
+      self.q_s_equilibrium = q_s_equilibrium
     else:
       # Default updates with array through time
-      q_s_equilibrium = np.array(self.sediment__discharge_per_unit_width())
+      self.q_s_equilibrium = np.array(self.sediment__discharge_per_unit_width())
     self.S_t_in = [] # flux_boundary_conditions_upstream
     self.S_t_out = [] # flux_boundary_conditions_downstream
-    if self.bc == 'q_s_boundary_with_set_width_and_depth':
-      for Si in range(len(self.x)):
-        # Upstream: so other river is the one that is above this one
-        if self.at_upstream_end[Si]:
-          if Si == 0:
-            bc = 1.5*self.transport__slope(q_s_equilibrium[Si][0], self.h[Si][0]) #1?
-          elif Si == 1:
-            bc = 0.8*self.transport__slope(q_s_equilibrium[Si][0], self.h[Si][0]) #1?
-          else:
-            bc = 2*self.transport__slope(q_s_equilibrium[Si][0], self.h[Si][0]) #1?
-        else:
-          # internal boundary conditions -- what goes in, must come out
-          # and at equilibrium (unforced)
-          # CHANGED! USING BOUNDARY SLOPES
-          _q_s = 0
-          # Sf = stream from (above Si)
-          for Sf in self.flow_from[Si]:
-            Sf = int(Sf)
-            #_z = [self.eta[Sf][-1], self.eta[Si][0]]
-            #_x = [self.x[Sf][-1], self.x[Si][0]]
-            #_h = np.mean([self.h[Sf][-1], self.h[Si][0]])
-            # WIDTH ADJUSTMENT
-            #_q_s += self.sediment__discharge_per_unit_width_at_link(_h, _z, _x) * self.b[Sf]/self.b[Si]
-            _q_s += q_s_equilibrium[Sf][-1] * self.b[Sf]/self.b[Si]
-          bc = self.transport__slope(_q_s, self.h[Si][0])
-        self.S_t_in.append(bc)
-        # So if at downstream end, then flowing to something
-        # and Si is upstream
-        if self.at_downstream_end[Si]:
-          #bc = 1.2 * self.transport__slope(q_s_equilibrium[Si][-1], self.h[Si][-1]) #-2?
-          # Just transporting out as much as it gets
-          bc = self.transport__slope(self.sediment__discharge_per_unit_width()[Si][-1], self.h[Si][-1]) #-2?
-        else:
-          # internal boundary conditions -- what goes in, must come out
-          # and at equilibrium (unforced)
-          # CHANGED! USING BOUNDARY SLOPES
-          _q_s = 0
-          for St in self.flow_to[Si]:
-            St = int(St)
-            # To use the slope right at the margin
-            #_z = [self.eta[Si][-1], self.eta[St][0]]
-            #_x = [self.x[Si][-1], self.x[St][0]]
-            #_h = np.mean([self.h[Si][-1], self.h[St][0]])
-            #_q_s += self.sediment__discharge_per_unit_width_at_link(_h, _z, _x)# * self.b[Si]/self.b[St]
-            _q_s += q_s_equilibrium[St][0]
-            #_q_s /= 2. # test!!!
-          bc = self.transport__slope(_q_s, self.h[Si][-1])
-        self.S_t_out.append(bc)
-    elif self.bc == 'self_adjusting_channel':
+    
+
+    ################################################################
+    # BC 2: DISCHARGE AT UPSTREAM, DOWNSTREAM: SELF-FORMED CHANNEL #
+    ################################################################
+    #if self.bc == 'q_s_boundary_with_set_width_and_depth':
+    self.boundary_condition_sediment_flux()
+    #elif self.bc == 'self_adjusting_channel':
+    #  pass
 
     ################################
     ### BACKBONE OF COEFF_MATRIX ###
