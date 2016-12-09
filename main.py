@@ -41,29 +41,38 @@ class rnet(object):
     and for sdiment motion that is backwards.
     S = -dz_dx
     """
-    if Si_values:
-      Si_values = list(Si_values)
+    if Si_values is not None:
+      if type(Si_values) is list:
+        pass
+      else:
+        Si_values = [Si_values]
     else:
       Si_values = range(len(self.eta))
     z = self.eta
     q_s = []
     for Si in Si_values:
-      if i:
+      if i is not None:
         _S = -(z[Si][i+1] - z[Si][i-1]) / (self.x[Si][i+1] - self.x[Si][i-1]) # = -dz_dx
         q_s_inner = np.abs(self.h[Si][i] * _S/self.D) - 0.0816
-        q_s_inner[q_s_inner < 0] = 0 # no transport if less than threshold
+        if type(q_s_inner) is list:
+          q_s_inner[q_s_inner < 0] = 0 # no transport if less than threshold
+        else:
+          if q_s_inner < 0:
+            q_s_inner = 0
         q_s_i = np.sign(_S) * 7.55 * q_s_inner**1.5
         q_s.append(q_s_i)
       else:
         _S = -(z[Si][2:] - z[Si][:-2]) / (self.x[Si][2:] - self.x[Si][:-2]) # = -dz_dx
         q_s_inner = np.abs(self.h[Si][1:-1] * _S/self.D) - 0.0816
-        q_s_inner[q_s_inner < 0] = 0 # no transport if less than threshold
+        if type(q_s_inner) is list or type(q_s_inner) is np.ndarray:
+          q_s_inner[q_s_inner < 0] = 0 # no transport if less than threshold
+        else:
+          if q_s_inner < 0:
+            q_s_inner = 0
         q_s_i = np.sign(_S) * 7.55 * q_s_inner**1.5
         q_s.append(q_s_i)
-    try:
-      q_s = float(q_s)
-    except:
-      pass
+    if len(q_s) == 1:
+      q_s = q_s[0]
     return q_s
 
   def sediment__discharge_per_unit_width_at_link(self, h, z, x):
@@ -177,12 +186,12 @@ class rnet(object):
       # Flowing to another segment?
       if (self.flow_from_to[:,0] == Si).any():
         to_Si = self.flow_from_to[:,1][self.flow_from_to[:,0] == Si]
-        boundary_value = self.eta[from_Si][0]
+        boundary_value = self.eta[to_Si][0]
         eta_with_bc_Si = np.hstack((eta_with_bc_Si, boundary_value))
       # Getting flow from upstream segments?
       if (self.flow_from_to[:,1] == Si).any():
         boundary_values = []
-        for from_Si in self.flow_from_to[:,0][self.flow_from_to[:,0] == Si]:
+        for from_Si in self.flow_from_to[:,0][self.flow_from_to[:,1] == Si]:
           boundary_values.append(self.eta[from_Si][-1])
         # STRAIGHT MEAN IS NOT THE BEST WAY TO GO, BUT IS A START
         # I AVOID THIS IN MAIN SOLVER BY HAVING UPSTREAM SEGMENTS INCLUDE
@@ -190,47 +199,47 @@ class rnet(object):
         eta_with_bc_Si = np.hstack((np.mean(boundary_values), eta_with_bc_Si))
       self.eta_with_boundary_values.append(eta_with_bc_Si)
       self.S.append( -( (self.eta_with_boundary_values[Si][1:] - \
-                         self.eta_with_boundary_values[Si][:-1]) ) / self.dx )
+                         self.eta_with_boundary_values[Si][:-1]) ) / self.dx[Si] )
 
-  def boundary_conditions__sediment_discharge_transport_slope__network(self, Qs=None):
+  def boundary_conditions__sediment_discharge_transport_slope__network(self, Q_s=None):
     self.boundary_conditions__copy_arrays()
     if Q_s:
       pass
     else:
-      Q_s = [None] * len(self.eta)
+      Q_s_all = [None] * len(self.eta)
     for Si in range(len(self.eta)):
-      self.boundary_condition__sediment_discharge_transport_slope(Si, Q_s[Si])
+      self.boundary_condition__sediment_discharge_transport_slope(Si, Q_s_all[Si])
 
   def boundary_condition__sediment_discharge_transport_slope(self, Si, Q_s=None):
     if len(self.eta_with_bc[Si]) == len(self.eta[Si]):
-      if self.at_upstream_end(Si):
-        b = self.b[Si][0]
-        h = self.h[Si][0]
+      if self.at_upstream_end[Si]:
+        print "Si", Si, "has an upstream boundary"
+        _b = self.b[Si][0]
+        _h = self.h[Si][0]
         if Q_s == None:
           q_s = self.sediment__discharge_per_unit_width(Si, 0)
-          Q_s = q_s * b
+          #Q_s = q_s * _b
         else:
-          q_s = Q_s/b
-        self.b_with_bc = np.hstack((b, self.b_with_bc[Si]))
-        self.h_with_bc = np.hstack((h, self.b_with_bc[Si]))
-        S_t = self.transport__slope(q_s, h)
-        self.eta_with_bc = np.hstack((S_t*dx + \
-            self.eta_with_bc[Si][0], self.eta_with_bc[Si]))
-      elif self.at_downstream_end(Si):
-        b = b[Si][-1]
-        h = h[Si][-1]
+          q_s = Q_s/_b
+        self.b_with_bc[Si] = np.hstack((_b, self.b_with_bc[Si]))
+        self.h_with_bc[Si] = np.hstack((_h, self.h_with_bc[Si]))
+        S_t = self.transport__slope(q_s, _h)
+        self.eta_with_bc[Si] = np.hstack((S_t*2*self.dx[Si] + \
+            self.eta_with_bc[Si][1], self.eta_with_bc[Si]))
+      if self.at_downstream_end[Si]:
+        print "Si", Si, "has a downstream boundary"
+        _b = self.b[Si][-1]
+        _h = self.h[Si][-1]
         if Q_s == None:
           q_s = self.sediment__discharge_per_unit_width(Si, -1)
-          Q_s = q_s * b
+          #Q_s = q_s * _b
         else:
-          q_s = Q_s/b
-        self.b_with_bc = np.hstack((b, self.b_with_bc[Si]))
-        self.h_with_bc = np.hstack((h, self.b_with_bc[Si]))
-        S_t = self.transport__slope(q_s, h)
-        self.eta_with_bc = np.hstack((S_t*dx + \
+          q_s = Q_s/_b
+        self.b_with_bc[Si] = np.hstack((_b, self.b_with_bc[Si]))
+        self.h_with_bc[Si] = np.hstack((_h, self.b_with_bc[Si]))
+        S_t = self.transport__slope(q_s, self.h[Si][-1])
+        self.eta_with_bc[Si] = np.hstack((S_t*self.dx[Si] + \
             self.eta_with_bc[Si][-1], self.eta_with_bc[Si]))
-      else:
-        print "WARNING: no boundary at this Si"
     else:
       print "WARNING: boundary condition has probably already been created"
       print "Doing nothing."
