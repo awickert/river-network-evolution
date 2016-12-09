@@ -24,20 +24,21 @@ self = r
 
 
 self.eta = []
-self.nx = 5E1+1
+self.nx = int(5E1+1)
 
 # 3 rivers -- would often pull them in from GIS
 # Keep everything uniform for starters
 xmax = 1E3
 self.B = 100 * np.ones(self.nx)
 S = 1E-2
-self.dt = 3.15E5
+self.dt = 3.15E3
 
 # Define these in init, later
 self.flow_from_to = np.array([[0,2],[1,2],[2,4],[3,4]])
 self.flow_from = [[], [], [0,1], [], [2,3]]
 self.flow_to = [[2], [2], [4], [4], []]
-self.b = [20, 20, 40, 20, 60]
+#self.b = [20, 20, 40, 20, 60]
+self.b = [[20]*self.nx, [20]*self.nx, [40]*self.nx, [20]*self.nx, [60]*self.nx]
 #self.b = [20, 30, 50, 10, 60]
 self.segment_Q_in = self.headwaters_segments = np.array([[0,40],[1,20],[3,50]])
 

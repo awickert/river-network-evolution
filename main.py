@@ -152,9 +152,9 @@ class rnet(object):
     
     
   def boundary_conditions__copy_arrays(self):
-    self.eta_with_bc = self.eta.copy()
-    self.h_with_bc = self.h.copy()
-    self.b_with_bc = self.b.copy()
+    self.eta_with_bc = list(self.eta)
+    self.h_with_bc = list(self.h)
+    self.b_with_bc = list(self.b)
 
   def boundary_conditions__constant_slope(self):
     """
@@ -192,20 +192,20 @@ class rnet(object):
       self.S.append( -( (self.eta_with_boundary_values[Si][1:] - \
                          self.eta_with_boundary_values[Si][:-1]) ) / self.dx )
 
-  def boundary_conditions__sediment_discharge_transport_slope__network(self, Qs):
+  def boundary_conditions__sediment_discharge_transport_slope__network(self, Qs=None):
     self.boundary_conditions__copy_arrays()
     if Q_s:
       pass
     else:
-      Q_s = [None] * len(eta)
-    for Si in range(len(eta)):
-      self.boundary_condition__sediment_discharge_transport_slope(Si, Q_s)
+      Q_s = [None] * len(self.eta)
+    for Si in range(len(self.eta)):
+      self.boundary_condition__sediment_discharge_transport_slope(Si, Q_s[Si])
 
   def boundary_condition__sediment_discharge_transport_slope(self, Si, Q_s=None):
     if len(self.eta_with_bc[Si]) == len(self.eta[Si]):
       if self.at_upstream_end(Si):
-        b = b[Si][0]
-        h = h[Si][0]
+        b = self.b[Si][0]
+        h = self.h[Si][0]
         if Q_s == None:
           q_s = self.sediment__discharge_per_unit_width(Si, 0)
           Q_s = q_s * b
@@ -335,7 +335,7 @@ class rnet(object):
         for Sf in self.flow_from[Si]:
           Sf = int(Sf)
           # WIDTH ADJUSTMENT
-          _q_s += self.q_s_equilibrium[Sf][-1] * self.b[Sf]/self.b[Si]
+          _q_s += self.q_s_equilibrium[Sf][-1] * self.b[Sf][-1]/self.b[Si][0]
         bc = self.transport__slope(_q_s, self.h[Si][0])
       self.S_t_in.append(bc)
       # So if at downstream end, then flowing to something
@@ -424,7 +424,7 @@ class rnet(object):
           # So look at next upstream on block it comes from
           # This may be a bit of a shortcut, though!
           # I'm dividing by 2 by assuming that width doubles -- so can transport twice as much sediment
-          self.coeff_matrix[Si*n, (Sf+1)*n-1] += self.coeff_matrix[(Sf+1)*n-1, (Sf+1)*n-2] * self.b[Sf]/self.b[Si]
+          self.coeff_matrix[Si*n, (Sf+1)*n-1] += self.coeff_matrix[(Sf+1)*n-1, (Sf+1)*n-2] * self.b[Sf][-1]/self.b[Si][0]
       # Connections at downstream ends of rivers
       if self.at_downstream_end[Si]:
         self.coeff_matrix[(Si+1)*n-1, (Si+1)*n-2] *= 2
