@@ -26,7 +26,8 @@ self.flow_from_to = np.array([[0,2],[1,2]])
 self.flow_from = [[], [], [0,1]]
 self.flow_to = [[2], [2], []]
 self.b = [20, 20, 40]
-self.segment_Q_in = np.array([[0,40],[1,20]])
+self.segment_Q_in = self.headwaters_segments = np.array([[0,40],[1,20]])
+self.nsegments = len(self.flow_from)
 
 #self.flow_from_to = np.array([[0,1]])
 #self.flow_from = [[], [0]]

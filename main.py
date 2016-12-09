@@ -107,7 +107,6 @@ class rnet(object):
     pass
     #if len(self.eta_with_bc[Si]) == len(self.eta[Si]):
     #  Q[]
-    pass
   
   def discharge__in_network(self, Qin):
     """
@@ -116,6 +115,7 @@ class rnet(object):
     pass
     #for Qi in Qin
     #self.Q = 
+    """
     headwaters_segments = []
     for Si in range(len(self.eta)):
       headwaters_segments_Si = []
@@ -126,6 +126,21 @@ class rnet(object):
       headwaters_segments.append()
     for segment, Q in self.segment_Q_in:
       self.Qin
+    """
+    # Mapping
+    headwaters_flow_to_segments = []
+    for Si_in, Q in headwaters_segments:
+      _headwaters_flow_to_segments_Si = []
+      to_segment = [Si_in]
+      while len(to_segment):
+        _headwaters_flow_to_segments_Si += list(to_segment)
+        to_segment = flow_from_to[:,1][flow_from_to[:,0] == to_segment]
+      headwaters_flow_to_segments.append(_headwaters_flow_to_segments_Si)
+    # Compute discharge
+    Q_in_segment = np.zeros(nsegments)
+    for HWi in range(len(headwaters_flow_to_segments)):
+      for Si in headwaters_flow_to_segments[HWi]:
+        Q_in_segment[Si] += headwaters_segments[HWi,1]
     
     
   def boundary_conditions__copy_arrays(self):
