@@ -13,6 +13,14 @@ self = r
 
 plt.ion()
 
+
+
+# PER RIVER #
+#############
+self.eta = []
+self.nx = 1E1+1
+
+
 #######################
 ### INPUT VARIABLES ###
 #######################
@@ -40,18 +48,20 @@ self.b = [20, 20, 40, 20, 60]
 #self.b = [20, 30, 50, 10, 60]
 self.segment_Q_in = self.headwaters_segments = np.array([[0,40],[1,20],[3,50]])
 
-
-# PER RIVER #
-#############
-self.eta = []
-self.nx = 5E1+1
+"""
+self.flow_from_to = np.array([[0,1]])
+self.flow_from = [[], [0]]
+self.flow_to = [[1], []]
+#self.b = [20, 20, 40, 20, 60]
+self.b = [20, 20]
+"""
 
 # 3 rivers -- would often pull them in from GIS
 # Keep everything uniform for starters
 xmax = 1E3
 self.B = 100 * np.ones(self.nx)
 S = 1E-2
-self.dt = 3.15E10
+self.dt = 3.15E3
 
 self.x = []
 self.dx = []
@@ -66,6 +76,7 @@ for Si in range(len(self.flow_to)):
 self.x[-3] += self.x[1][-1] + self.dx[-1] #Very specific to this 5-river set here
 self.x[-2] += self.x[1][-1] + self.dx[-1] #Very specific to this 5-river set here
 self.x[-1] += self.x[2][-1] + self.dx[-1] #Very specific to this 5-river set here
+#self.x[-1] += self.x[-2][-1] + self.dx[-1] #Very specific to this 2-river set here
 for row in self.x:
   self.eta.append( -S * row + np.max(self.x)*S )
   self.eta[-1] = np.round(self.eta[-1], 6) # coarse trick to rmv floating point issues
@@ -100,11 +111,11 @@ plt.ylim((0,50))
 ax = plt.subplot(111)
 #for row in self.eta:
 #  row += 10
-for ts in range(1):#self.nts:
+for ts in range(100):#self.nts:
   # 3 iterations is usually good; nothing special about it, though.
   self.eta_iter = copy.deepcopy(self.eta) # For iteration
   self.stack_vars()
-  for iter_i in range(2):
+  for iter_i in range(5):
     self.build_coeff_matrix(q_s_equilibrium)
     self.build_RHS()
     print np.max(np.hstack(self.eta_iter))
@@ -115,7 +126,7 @@ for ts in range(1):#self.nts:
     self.riverplot(linewidth=2)
     #plt.ylim((0,40))
     #plt.draw()
-    plt.pause(0.01)
+    plt.pause(0.0001)
 self.stack_vars()
 
 #self.plot_coeff_matrix()

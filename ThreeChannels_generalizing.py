@@ -85,7 +85,7 @@ class rnet(object):
     A1_inside[A1_inside < 0] = 0 # no transport
     #print A1_inside
     A1 = np.sign(A1_inside) * (A1_inside)**0.5
-    
+
     # Minus for flipping eta(t) and eta(t+1)
     A = - self.A0[Si] * A1
     #A = 0*A+1 # Making A linear for the moment -- none of the above matters!!!
@@ -96,6 +96,8 @@ class rnet(object):
     r1 =  Adt/self.dx[Si]**2
     #r1[0]  += l1[0]
     #l1[-1] += r1[-1]
+    
+    print d_eta_iter__dx
 
     # Now populate tridiagonal
     l1 = np.roll(l1, -1)
@@ -295,3 +297,21 @@ class rnet(object):
     for _from, _to in self.flow_from_to:
       plt.plot([self.x[_from][-1], self.x[_to][0]], [self.eta[_from][-1], self.eta[_to][0]], 'k-', linewidth=linewidth)
       
+  def shear_stress_depth_slope(self):
+    for row in self.h:
+      pass
+
+
+  def channel_width_Parker(self):
+    pass
+    
+  def channel_closure_Parker(self):
+    self.Q = 100. # needs to be defined outside
+    self.tau_start_crit = 0.03
+    S = 1E-2 # replace with diff later
+    h = 1.2 * self.tau_start_crit * 1.65 * self.D/S
+    z0 = self.D/8. # Guess, based on idea of D84
+    u = (9.8**.5/.407) * (1.2 * self.tau_start_crit * 1.65)**.5 * np.log(h/(np.e*self.D))
+    b = self.Q/(h*u)
+    
+    
