@@ -96,8 +96,9 @@ class rnet(object):
     r1 =  Adt/self.dx[Si]**2
     #r1[0]  += l1[0]
     #l1[-1] += r1[-1]
-    
-    print d_eta_iter__dx
+
+    ##############!!!!!!!!!!!! diff from newer code starts here
+    #########print d_eta_iter__dx
 
     # Now populate tridiagonal
     l1 = np.roll(l1, -1)
@@ -291,12 +292,26 @@ class rnet(object):
     plt.imshow(cm_d, interpolation='nearest')
     plt.show()
     
-  def riverplot(self, linewidth=1):
+  def riverplot(self, linewidth=1, plot_start=False, _colors=True):
+    if _colors:
+      colors = ['red', 'orange', 'green', 'blue', 'purple'] * 5
+    else:
+      colors = ['k']*25
+    plt.figure(figsize=(12,6))
     for i in range(len(self.x)):
-      plt.plot(self.x[i], self.eta[i], 'k-', linewidth=linewidth)
+      plt.plot(self.x[i]/1000., self.eta[i], 'k-', color=colors[i], linewidth=linewidth)
+      plt.plot(self.x[i]/1000., self.eta0[i], '-', color='0.5', linewidth=2)
     for _from, _to in self.flow_from_to:
-      plt.plot([self.x[_from][-1], self.x[_to][0]], [self.eta[_from][-1], self.eta[_to][0]], 'k-', linewidth=linewidth)
-      
+      plt.plot([self.x[_from][-1]/1000., self.x[_to][0]/1000.], [self.eta[_from][-1], self.eta[_to][0]], 'k-', color=colors[_from], linewidth=linewidth)
+      if plot_start:
+        plt.plot([self.x[_from][-1]/1000., self.x[_to][0]/1000.], [self.eta0[_from][-1], self.eta0[_to][0]], '-', linewidth=2, color='.5')
+    plt.xlabel('$x$ [km]', fontsize=16)
+    plt.ylabel('$x$ [km]', fontsize=16)
+    plt.title('Alluvial long profiles', fontsize=20)
+    plt.xlim((0, 3))
+    plt.ylim((0, 35))
+    plt.tight_layout()
+    
   def shear_stress_depth_slope(self):
     for row in self.h:
       pass
