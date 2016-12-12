@@ -18,7 +18,7 @@ plt.ion()
 # PER RIVER #
 #############
 self.eta = []
-self.nx = 1E1+1
+self.nx = 1E2 + 1
 
 
 #######################
@@ -61,7 +61,7 @@ self.b = [20, 20]
 xmax = 1E3
 self.B = 100 * np.ones(self.nx)
 S = 1E-2
-self.dt = 3.15E3
+self.dt = 3.15E0
 
 self.x = []
 self.dx = []
@@ -80,6 +80,8 @@ self.x[-1] += self.x[2][-1] + self.dx[-1] #Very specific to this 5-river set her
 for row in self.x:
   self.eta.append( -S * row + np.max(self.x)*S )
   self.eta[-1] = np.round(self.eta[-1], 6) # coarse trick to rmv floating point issues
+
+self.eta0 = copy.deepcopy(self.eta)
 
 #########################
 ### DERIVED VARIABLES ###
@@ -106,33 +108,37 @@ q_s_equilibrium = np.array(self.sediment__discharge_per_unit_width())
 
 # Assuming in order: so flow_from is really irrelavant; flow_to is the important part
 
+"""
 fig = plt.figure()
 plt.ylim((0,50))
 ax = plt.subplot(111)
+"""
 #for row in self.eta:
 #  row += 10
-for ts in range(100):#self.nts:
+for ts in range(10):#self.nts:
   # 3 iterations is usually good; nothing special about it, though.
   self.eta_iter = copy.deepcopy(self.eta) # For iteration
   self.stack_vars()
-  for iter_i in range(5):
+  for iter_i in range(20):
     self.build_coeff_matrix(q_s_equilibrium)
     self.build_RHS()
-    print np.max(np.hstack(self.eta_iter))
+    #print np.max(np.hstack(self.eta_iter))
     self.solve()
   self.update()
+"""
   ax.clear()
-  if ts % 5 == 0:
+  if ts % 25 == 0:
     self.riverplot(linewidth=2)
     #plt.ylim((0,40))
     #plt.draw()
     plt.pause(0.0001)
+"""
 self.stack_vars()
 
 #self.plot_coeff_matrix()
 
 #plt.ylim((0,40))
-self.riverplot(linewidth=4)
+self.riverplot(linewidth=4, plot_start=True)
 plt.show()
   
   

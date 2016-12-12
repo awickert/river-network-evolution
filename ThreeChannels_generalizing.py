@@ -75,8 +75,71 @@ class rnet(object):
     """
 
     # Add boundary conditions, as needed
+    #"""
+    # OLD -- ALL JUST USING TRANSPORT SLOPE (UPSTREAM AND DOWN)
+    # REGARDLESS OF WHETHER OR NOT IT IS THE GOOD CHOICE
     eta_iter__with_ghost = np.hstack((self.eta_iter[Si][1] + self.S_t_in[Si]*2*self.dx[Si], self.eta_iter[Si], self.eta_iter[Si][-2] - self.S_t_out[Si]*2*self.dx[Si]))
+    #d_eta_iter__dx = (eta_iter__with_ghost[2:] - eta_iter__with_ghost[:-2]) / (2*self.dx[Si])
+    """
+    # NEW -- 
+    eta_iter__with_ghost = self.eta_iter[Si]
+    # Same as self.flow_from has len 0
+    #if (self.headwaters_segments[:,0] == [Si]).any():
+    # SAME, but more consistent with below
+    if len(self.flow_from[Si]) == 0:
+      eta_iter__with_ghost = np.hstack((self.eta_iter[Si][1] + self.S_t_in[Si]*2*self.dx[Si], eta_iter__with_ghost))
+    else:
+      # Compute equivalent slope for sum of sediment inputs from upstream
+      # This way, one value will work in array -- will get more complicated if 
+      # multiple grain sizes are used!
+      q_s_in__forward_calc = []
+      for flow_from_Si in self.flow_from[Si]:
+        upstream_cell__eta = self.eta[flow_from_Si][-1]
+        downstream_cell__eta = self.eta[Si][1] # for central differencing: this is eta[Si]
+        # real slope -- not needed but calc for debug
+        S_in = - (downstream_cell__eta - upstream_cell__eta)/(2*self.dx)
+        # Flow depth: use a mean
+        _h = np.mean((self.h[flow_from_Si][-1], self.h[Si][1]))
+        _z = [upstream_cell__eta, downstream_cell__eta]
+        _x = [self.x[flow_from_Si][-1], self.x[Si][1]]
+        _q_s = self.sediment__discharge_per_unit_width_at_link(_h, _z, _x)
+        q_s_in__forward_calc.append(_q_s)
+      q_s_in__forward_calc_total = np.sum(q_s_in__forward_calc)
+      # Use slope at cell for depth for transport slope
+      S_t_eq = self.transport__slope(q_s_in__forward_calc_total, self.h[Si][0])
+      eta_iter__with_ghost = np.hstack((self.eta_iter[Si][1] + S_t_eq*2*self.dx[Si], eta_iter__with_ghost))
+    if len(self.flow_from[Si]) != 0:
+      eta_iter__with_ghost = np.hstack((eta_iter__with_ghost, self.eta_iter[Si][-2] - self.S_t_out[Si]*2*self.dx[Si]))
+    else:
+      # Allow flow from multiple rivers
+      q_s_out__forward_calc = []
+      for flow_to_Si in self.flow_to[Si]:
+        upstream_cell__eta = self.eta[Si][-2] # for central differencing: this is eta[Si]
+        downstream_cell__eta = self.eta[flow_to_Si][0]
+        # real slope -- not needed but calc for debug
+        S_out = - (downstream_cell__eta - upstream_cell__eta)/(2*self.dx)
+        # Flow depth: use a mean
+        _h = np.mean((self.h[flow_to_Si][-1], self.h[Si][1]))
+        _z = [upstream_cell__eta, downstream_cell__eta]
+        _x = [self.x[flow_to_Si][-1], self.x[Si][1]]
+        _q_s = self.sediment__discharge_per_unit_width_at_link(_h, _z, _x)
+        q_s_out__forward_calc.append(_q_s)
+      q_s_out__forward_calc_total = np.sum(q_s_out__forward_calc)
+      # Use slope at cell for depth for transport slope
+      # Not recovering input slope!
+      S_t_eq = self.transport__slope(q_s_out__forward_calc_total, self.h[Si][0])
+      eta_iter__with_ghost = np.hstack((self.eta_iter[Si][1] + S_t_eq*2*self.dx[Si], eta_iter__with_ghost))
+    """
+      
+    """
+      upstream_cell__eta = self.eta[Si][1] # for central differencing
+      downstream_cell__eta = self.eta[self.flow_to[Si][0]][-1]
+      S_in = (downstream_cell__eta - upstream_cell__eta)/(2*self.dt)
+      # OLD ONE -- no updates, yet.
+      eta_iter__with_ghost = np.hstack((self.eta_iter[Si][1] + S_in*2*self.dx[Si], self.eta_iter[Si], self.eta_iter[Si][-2] - self.S_t_out[Si]*2*self.dx[Si]))
+    """
     d_eta_iter__dx = (eta_iter__with_ghost[2:] - eta_iter__with_ghost[:-2]) / (2*self.dx[Si])
+
 
     #A1 = (- ( (self.h/self.D) * detatmp_dx ) - 0.0816)**.5
     # HAVE TO CHECK ABS TO LET UPSTREAM QS HAPPEN
