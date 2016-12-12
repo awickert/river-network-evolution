@@ -48,6 +48,13 @@ self.b = [20, 20, 40, 20, 60]
 #self.b = [20, 30, 50, 10, 60]
 self.segment_Q_in = self.headwaters_segments = np.array([[0,40],[1,20],[3,50]])
 
+self.flow_from_to = np.array([[]])
+self.flow_from = [[]]
+self.flow_to = [[]]
+self.b = [20]
+#self.b = [20, 30, 50, 10, 60]
+self.segment_Q_in = self.headwaters_segments = np.array([[0,40]])
+
 """
 self.flow_from_to = np.array([[0,1]])
 self.flow_from = [[], [0]]
@@ -61,7 +68,7 @@ self.b = [20, 20]
 xmax = 1E3
 self.B = 100 * np.ones(self.nx)
 S = 1E-2
-self.dt = 3.15E0
+self.dt = 3.15E2
 
 self.x = []
 self.dx = []
@@ -73,9 +80,9 @@ for Si in range(len(self.flow_to)):
   self.dx.append(np.mean(np.diff(self.x[-1]))) # Special case of uniform grid spacing
   self.h.append(2. * np.ones(self.nx)) # specific case of 2 m depth everywhere
 #self.x[-1] += self.x[-2][-1] + self.dx[-1] #Very specific to this 3-river set here
-self.x[-3] += self.x[1][-1] + self.dx[-1] #Very specific to this 5-river set here
-self.x[-2] += self.x[1][-1] + self.dx[-1] #Very specific to this 5-river set here
-self.x[-1] += self.x[2][-1] + self.dx[-1] #Very specific to this 5-river set here
+#self.x[-3] += self.x[1][-1] + self.dx[-1] #Very specific to this 5-river set here
+#self.x[-2] += self.x[1][-1] + self.dx[-1] #Very specific to this 5-river set here
+#self.x[-1] += self.x[2][-1] + self.dx[-1] #Very specific to this 5-river set here
 #self.x[-1] += self.x[-2][-1] + self.dx[-1] #Very specific to this 2-river set here
 for row in self.x:
   self.eta.append( -S * row + np.max(self.x)*S )

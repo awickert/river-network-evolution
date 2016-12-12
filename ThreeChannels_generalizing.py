@@ -199,8 +199,16 @@ class rnet(object):
     self.at_downstream_end = []
     # Si for segment (or stream) index
     for Si in range(len(self.eta)):
-      self.at_upstream_end.append( (self.flow_from_to[:,1] != Si).all() )
-      self.at_downstream_end.append( (self.flow_from_to[:,0] != Si).all() )
+      try:
+        self.at_upstream_end.append( (self.flow_from_to[:,1] != Si).all() )
+      except:
+        # Only one link?
+        self.at_upstream_end.append(True)
+      try:
+        self.at_downstream_end.append( (self.flow_from_to[:,0] != Si).all() )
+      except:
+        # Only one link?
+        self.at_downstream_end.append(True)
 
     ###########################
     ### BOUNDARY CONDITIONS ###
@@ -364,10 +372,13 @@ class rnet(object):
     for i in range(len(self.x)):
       plt.plot(self.x[i]/1000., self.eta[i], 'k-', color=colors[i], linewidth=linewidth)
       plt.plot(self.x[i]/1000., self.eta0[i], '-', color='0.5', linewidth=2)
-    for _from, _to in self.flow_from_to:
-      plt.plot([self.x[_from][-1]/1000., self.x[_to][0]/1000.], [self.eta[_from][-1], self.eta[_to][0]], 'k-', color=colors[_from], linewidth=linewidth)
-      if plot_start:
-        plt.plot([self.x[_from][-1]/1000., self.x[_to][0]/1000.], [self.eta0[_from][-1], self.eta0[_to][0]], '-', linewidth=2, color='.5')
+    try:
+      for _from, _to in self.flow_from_to:
+        plt.plot([self.x[_from][-1]/1000., self.x[_to][0]/1000.], [self.eta[_from][-1], self.eta[_to][0]], 'k-', color=colors[_from], linewidth=linewidth)
+        if plot_start:
+          plt.plot([self.x[_from][-1]/1000., self.x[_to][0]/1000.], [self.eta0[_from][-1], self.eta0[_to][0]], '-', linewidth=2, color='.5')
+    except:
+      plt.plot([self.x[-1]/1000., self.x[0]/1000.], [self.eta[_from][-1], self.eta[_to][0]], 'k-', color=colors[_from], linewidth=linewidth)
     plt.xlabel('$x$ [km]', fontsize=16)
     plt.ylabel('$x$ [km]', fontsize=16)
     plt.title('Alluvial long profiles', fontsize=20)
