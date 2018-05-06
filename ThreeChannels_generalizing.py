@@ -226,11 +226,11 @@ class rnet(object):
       # Upstream: so other river is the one that is above this one
       if self.at_upstream_end[Si]:
         if Si == 0:
-          bc = 1.5*self.transport__slope(q_s_equilibrium[Si][0], self.h[Si][0]) #1?
+          bc = self._q_s_in_multiplier*self.transport__slope(q_s_equilibrium[Si][0], self.h[Si][0]) #1?
         elif Si == 1:
-          bc = 0.8*self.transport__slope(q_s_equilibrium[Si][0], self.h[Si][0]) #1?
+          bc = 1*self.transport__slope(q_s_equilibrium[Si][0], self.h[Si][0]) #1?
         else:
-          bc = 2*self.transport__slope(q_s_equilibrium[Si][0], self.h[Si][0]) #1?
+          bc = 1*self.transport__slope(q_s_equilibrium[Si][0], self.h[Si][0]) #1?
       else:
         # internal boundary conditions -- what goes in, must come out
         # and at equilibrium (unforced)
@@ -252,7 +252,9 @@ class rnet(object):
       if self.at_downstream_end[Si]:
         #bc = 1.2 * self.transport__slope(q_s_equilibrium[Si][-1], self.h[Si][-1]) #-2?
         # Just transporting out as much as it gets
-        bc = self.transport__slope(self.sediment__discharge_per_unit_width()[Si][-1], self.h[Si][-1]) #-2?
+        #bc = self.transport__slope(self.sediment__discharge_per_unit_width()[Si][-1], self.h[Si][-1]) #-2?
+        # Or as much as comes in the top -- keep even
+        bc = self.transport__slope(q_s_equilibrium[Si][0], self.h[Si][0]) #1?
       else:
         # internal boundary conditions -- what goes in, must come out
         # and at equilibrium (unforced)
@@ -363,27 +365,33 @@ class rnet(object):
     plt.imshow(cm_d, interpolation='nearest')
     plt.show()
     
-  def riverplot(self, linewidth=1, plot_start=False, _colors=True):
+  def riverplot(self, linewidth=1, plot_start=False, _colors=True, _num=None):
     if _colors:
-      colors = ['red', 'orange', 'green', 'blue', 'purple'] * 5
+      colors = ['black', 'red', 'orange', 'green', 'blue', 'purple'] * 5
     else:
       colors = ['k']*25
-    plt.figure(figsize=(12,6))
+    plt.figure(num=_num, figsize=(12,6))
     for i in range(len(self.x)):
       plt.plot(self.x[i]/1000., self.eta[i], 'k-', color=colors[i], linewidth=linewidth)
       plt.plot(self.x[i]/1000., self.eta0[i], '-', color='0.5', linewidth=2)
-    try:
+    if self.nsegments > 1:
       for _from, _to in self.flow_from_to:
         plt.plot([self.x[_from][-1]/1000., self.x[_to][0]/1000.], [self.eta[_from][-1], self.eta[_to][0]], 'k-', color=colors[_from], linewidth=linewidth)
         if plot_start:
           plt.plot([self.x[_from][-1]/1000., self.x[_to][0]/1000.], [self.eta0[_from][-1], self.eta0[_to][0]], '-', linewidth=2, color='.5')
-    except:
-      plt.plot([self.x[-1]/1000., self.x[0]/1000.], [self.eta[_from][-1], self.eta[_to][0]], 'k-', color=colors[_from], linewidth=linewidth)
+    else:
+      # Just one river
+      pass
     plt.xlabel('$x$ [km]', fontsize=16)
-    plt.ylabel('$x$ [km]', fontsize=16)
-    plt.title('Alluvial long profiles', fontsize=20)
-    plt.xlim((0, 3))
-    plt.ylim((0, 35))
+    plt.ylabel('$z$ [m]', fontsize=16)
+    if self.nsegments > 1:
+      # Many
+      plt.title('Alluvial long profiles', fontsize=20)
+    else:
+      # One
+      plt.title('Alluvial long profile', fontsize=20)
+    #plt.xlim((0, 3))
+    #plt.ylim((0, 35))
     plt.tight_layout()
     
   def shear_stress_depth_slope(self):
